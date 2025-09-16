@@ -45,7 +45,7 @@ export class LottieSprite extends Sprite {
   onProgress?: (progress: number) => void;
   enterFrame?: (currentFrame: number) => void;
 
-  constructor(options: LottieOptions) {
+  private constructor(options: LottieOptions) {
     const width = (options.width ?? 100) * window.devicePixelRatio || 2;
     const height = (options.height ?? 100) * window.devicePixelRatio || 2;
 
@@ -56,19 +56,26 @@ export class LottieSprite extends Sprite {
     super({ texture: Texture.from(tempCanvas) });
 
     this._canvas = tempCanvas;
+  }
 
-    this.initLottie(options).then(() => {
-      this._lottieAnimation?.addEventListener("DOMLoaded", () => {
-        if (this._lottieAnimation) {
-          this._playing = false;
-
-          this._lottieAnimation.addEventListener("enterFrame", () => {
-            this.texture.source.update();
-          });
-        }
-      });
-      this.initEvent();
-    });
+  static async create(options: LottieOptions) : Promise<LottieSprite | undefined> {
+    const lottieSprite = new LottieSprite(options);
+    try {
+      await lottieSprite.initLottie(options);
+      lottieSprite._lottieAnimation?.addEventListener("DOMLoaded", () => {
+        if (lottieSprite._lottieAnimation) {
+          lottieSprite._playing = options.autoplay ?? false;
+          lottieSprite._lottieAnimation.addEventListener("enterFrame", () => {
+            lottieSprite.texture.source.update();
+           });
+         }
+       });
+      lottieSprite.initEvent();
+    } catch (error) { 
+      console.error(error);
+      return;
+    }
+    return lottieSprite;
   }
 
   private async initLottie(options: LottieOptions) {
@@ -99,6 +106,7 @@ export class LottieSprite extends Sprite {
   private initEvent() {
     // 当动画播放完成时触发
     this._lottieAnimation?.addEventListener("complete", () => {
+      this._playing = false;
       this.onCompleted?.();
     });
 
@@ -121,17 +129,45 @@ export class LottieSprite extends Sprite {
   }
 
   play() {
-    if (!this._playing) {
-      this._playing = true;
-      this._lottieAnimation?.goToAndPlay(0, true);
-    }
+    this._playing = true;
++   this._lottieAnimation?.goToAndPlay(this.currentFrame, true);
   }
 
   stop() {
-    if (this._playing) {
-      this._playing = false;
-      this._lottieAnimation?.pause();
-    }
+    this._playing = false;
++    this._lottieAnimation?.stop();
+  }
+
+  pause() {
+    this._playing = false;
+    this._lottieAnimation?.pause();
+  }
+  
+  setSpeed(speed: number) { 
+    this._lottieAnimation?.setSpeed(speed);
+  }
+
+  goToAndStop(value: number, isFrame:boolean = false) { 
+    this._playing = false;
+    this._lottieAnimation?.goToAndStop(value, isFrame);
+  } 
+  
+  goToAndPlay(value: number, isFrame:boolean = false) { 
+    this._playing = true;
+    this._lottieAnimation?.goToAndPlay(value, isFrame);
+  }
+
+  setDirection(direction: number) { 
+    this._lottieAnimation?.setDirection(direction);
+  }
+
+  playSegments(segments: number[] | number[][], forceFlag: boolean = true) { 
+    this._playing = true;
+    this._lottieAnimation?.playSegments(segments, forceFlag);
+  }
+
+  getDuration(inFrames: boolean = false) { 
+    return this._lottieAnimation?.getDuration(inFrames) ?? 0;
   }
 
   destroy() {
